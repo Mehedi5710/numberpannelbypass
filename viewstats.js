@@ -1,36 +1,35 @@
-// api/viewstats.js
+// server.js
+const express = require('express');
+const fetch = require('node-fetch');
 
-export default async function handler(req, res) {
-  // Only allow GET
-  if (req.method !== 'GET') {
-    res.status(405).send('Method Not Allowed');
-    return;
-  }
+const app = express();
 
-  // Base API you are masking
-  const upstreamBase = 'http://147.135.212.197/crapi/st/viewstats';
+// Original API base URL
+const upstreamBase = 'http://147.135.212.197/crapi/st/viewstats';
 
-  // Pass all parameters exactly (token must come from user)
-  const params = new URLSearchParams(req.query);
-
-  // If user did NOT provide token → return error
-  if (!params.has('token')) {
-    res.status(400).send('Missing required parameter: token');
-    return;
-  }
-
-  const upstreamUrl = `${upstreamBase}?${params.toString()}`;
-
+// Main proxy route: matches your original path
+app.get('/crapi/st/viewstats', async (req, res) => {
   try {
-    // Fetch original API
+    // Copy all query parameters (?token=... etc.)
+    const params = new URLSearchParams(req.query);
+
+    // Require token from query – same logic as Vercel version
+    if (!params.has('token')) {
+      res.status(400).send('Missing required parameter: token');
+      return;
+    }
+
+    const upstreamUrl = `${upstreamBase}?${params.toString()}`;
+
+    // Call original API
     const upstreamResponse = await fetch(upstreamUrl, {
-      method: 'GET'
+      method: 'GET',
     });
 
-    // Copy status
+    // Forward HTTP status
     res.status(upstreamResponse.status);
 
-    // Copy all safe headers
+    // Forward headers (skip problematic ones)
     upstreamResponse.headers.forEach((value, key) => {
       const k = key.toLowerCase();
       if (k === 'content-encoding') return;
@@ -38,12 +37,17 @@ export default async function handler(req, res) {
       res.setHeader(key, value);
     });
 
-    // Return EXACT original body (text, JSON, HTML… anything)
-    const body = await upstreamResponse.text();
-    res.send(body);
-
+    // Forward body EXACTLY (no JSON parse, no modification)
+    const bodyText = await upstreamResponse.text();
+    res.send(bodyText);
   } catch (err) {
     console.error('Proxy error:', err);
     res.status(502).send('Bad Gateway (proxy error)');
   }
-}
+});
+
+// Render gives PORT via env
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Proxy server listening on port ${PORT}`);
+});
