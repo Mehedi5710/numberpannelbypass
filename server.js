@@ -13,7 +13,7 @@ app.get('/crapi/st/viewstats', async (req, res) => {
     // Copy all query parameters (?token=... etc.)
     const params = new URLSearchParams(req.query);
 
-    // Require token from query – same logic as Vercel version
+    // Require token from query
     if (!params.has('token')) {
       res.status(400).send('Missing required parameter: token');
       return;
