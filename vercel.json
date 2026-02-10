@@ -1,1 +1,9 @@
 
+{
+  "rewrites": [
+    {
+      "source": "/crapi/st/viewstats",
+      "destination": "/api/viewstats"
+    }
+  ]
+}
